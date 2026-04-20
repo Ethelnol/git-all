@@ -35,7 +35,7 @@ back(){
 	return 0
 }
 
-#output <1> with color <2> if <2> is set.  Note: does not output newlines
+#output <1> with color <2> if <2> is set.  Returns 0 if output.  Returns 1 if <quiet>.  Note: does not automatically output newlines
 output(){
 	$quiet && return 1
 
@@ -53,7 +53,7 @@ pull(){
 	l=$(echo "$str" | wc -l)
 }
 
-#uses <str> and removes all incompatible merge files listed in <str>
+#removes all incompatible merge files listed in <str>
 clean(){
 	while read -r i; do
 		if [[ -f "$i" ]]; then
@@ -129,7 +129,7 @@ buildRepo(){
 		output "build complete\n" "green"
 		return 0
 	else
-		output "build failed" "red"
+		output "build failed\n" "red"
 		return 2
 	fi
 }
@@ -221,6 +221,7 @@ helpText(){
 
 #output "git-all.sh: $1\n".  Output is red if color is supported
 fatal_error(){
+	#check for <color_support> before printing red because fatal_error() can called before color nullification at the end of options()
 	$color_support && printf -- "${color[red]}"
 	printf -- "git-all.sh: $1\n"
 	exit 1
@@ -232,20 +233,23 @@ options(){
 	for arg in "$@"; do
 		shift
 		case "$arg" in
-			--*)
-				#modifies variables such that the original <arg> can be recreated with "--$arg" or "--$arg=$opt" if a '=' is present
-				arg="$(printf -- "$arg" | cut -d '-' -f 3-)"
+			--*=*)
+				#modifies variables such that the original <arg> can be recreated with "--$arg=$opt" if a '=' is present
 				opt="$(printf -- "$arg" | cut -d '=' -f 2-)"
-				arg="$(printf -- "$arg" | cut -d '=' -f 1)"
+				arg="$(printf -- "$arg" | cut -d '=' -f 1 | cut -c 3-)"
 				newArg="${shortArgs["$arg"]}"
 
 				[[ -z "$newArg" ]] && fatal_error "unknown argument -- --$arg"
 
-				#set -- "$@" "-$newArg"
-				if [[ "$arg" == "$opt" ]]
-					then set -- "$@" "-$newArg"
-					else set -- "$@" "-$newArg" "$opt"
-				fi
+				set -- "$@" "-$newArg" "$opt"
+				;;
+			--*)
+				arg="$(printf -- "$arg" | cut -c 3-)"
+				newArg="${shortArgs["$arg"]}"
+
+				[[ -z "$newArg" ]] && fatal_error "unknown argument -- --$arg"
+
+				set -- "$@" "-$newArg"
 				;;
 			*)
 				set -- "$@" "$arg"
@@ -339,7 +343,7 @@ for i in "$gitDir"/*/"$file_name"; do
 	fi
 
 	project="$(echo -n "$i" | rev | cut -d '/' -f 2 | rev)"
-	cd "$gitDir/$project"
+	cd "$curDir/$gitDir/$project"
 
 	output "  $project: $(eval "printf -- ' %.0s' {$(echo -n "$project" | wc -c)..$largestLen}")"
 
@@ -361,7 +365,6 @@ for i in "$gitDir"/*/"$file_name"; do
 	fi
 
 	! ($updated || $built) && output "up to date\n" "green"
-
-	cd "$curDir"
 done
 
+cd "$curDir"
