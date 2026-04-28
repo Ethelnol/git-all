@@ -336,6 +336,11 @@ if ! $quiet; then
 	output "  repository: $(eval "printf -- ' %.0s' {10..$largestLen}")status\n\n"
 fi
 
+#get absolute path for gitDir
+
+cd "$gitDir"
+gitDir="$PWD"
+
 #update and build process
 for i in "$gitDir"/*/"$file_name"; do
 	if [[ "$i" == "$gitDir/*/$file_name" ]]; then
@@ -343,7 +348,7 @@ for i in "$gitDir"/*/"$file_name"; do
 	fi
 
 	project="$(echo -n "$i" | rev | cut -d '/' -f 2 | rev)"
-	cd "$curDir/$gitDir/$project"
+	cd "$gitDir/$project"
 
 	output "  $project: $(eval "printf -- ' %.0s' {$(echo -n "$project" | wc -c)..$largestLen}")"
 
@@ -364,7 +369,8 @@ for i in "$gitDir"/*/"$file_name"; do
 		(( ret == 0 )) && built=true
 	fi
 
-	! ($updated || $built) && output "up to date\n" "green"
+	! ($updated || $built) && output "up to date\n" "none"
 done
 
+#return to curDir in case file is sourced
 cd "$curDir"
